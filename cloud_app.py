@@ -140,6 +140,7 @@ def apply_styles():
         """
         <style>
             :root {
+                color-scheme: light;
                 --ink: #101828;
                 --muted: #526070;
                 --line: #d7dee7;
@@ -155,6 +156,11 @@ def apply_styles():
                 --danger-text: #991b1b;
                 --done: #16a34a;
             }
+            html, body, .stApp {
+                background: var(--canvas) !important;
+                color: var(--ink) !important;
+                color-scheme: light !important;
+            }
             .stApp { background: var(--canvas); color: var(--ink); }
             .block-container {
                 max-width: 760px;
@@ -163,6 +169,53 @@ def apply_styles():
             }
             [data-testid="stHeader"] { background: transparent; }
             h1, h2, h3, p { letter-spacing: 0; }
+            [data-testid="stForm"],
+            [data-testid="stForm"] h1,
+            [data-testid="stForm"] h2,
+            [data-testid="stForm"] h3,
+            [data-testid="stForm"] p,
+            [data-testid="stForm"] label,
+            [data-testid="stForm"] span:not(.check-icon),
+            [data-testid="stForm"] small,
+            [data-testid="stMarkdownContainer"] h1,
+            [data-testid="stMarkdownContainer"] h2,
+            [data-testid="stMarkdownContainer"] h3,
+            [data-testid="stMarkdownContainer"] p {
+                color: var(--ink) !important;
+                opacity: 1 !important;
+                -webkit-text-fill-color: var(--ink) !important;
+            }
+            .stTextInput label,
+            .stNumberInput label,
+            .stSelectbox label,
+            .stCheckbox label,
+            [data-testid="stTextInput"] label,
+            [data-testid="stNumberInput"] label,
+            [data-testid="stSelectbox"] label,
+            [data-testid="stCheckbox"] label {
+                color: var(--ink) !important;
+                opacity: 1 !important;
+                -webkit-text-fill-color: var(--ink) !important;
+            }
+            .stTextInput input,
+            .stNumberInput input,
+            [data-testid="stTextInput"] input,
+            [data-testid="stNumberInput"] input,
+            textarea,
+            div[data-baseweb="input"],
+            div[data-baseweb="select"] > div {
+                background: #ffffff !important;
+                border-color: var(--line) !important;
+                color: var(--ink) !important;
+                -webkit-text-fill-color: var(--ink) !important;
+            }
+            .stTextInput input::placeholder,
+            .stNumberInput input::placeholder,
+            textarea::placeholder {
+                color: #667085 !important;
+                opacity: 1 !important;
+                -webkit-text-fill-color: #667085 !important;
+            }
             .page-head {
                 border-bottom: 1px solid var(--line);
                 margin-bottom: 1rem;
@@ -945,6 +998,16 @@ def ensure_device_id():
     return device_id
 
 
+def render_device_link_tip(device_id, audience="worker"):
+    title = "이 기기 전용 접속 링크"
+    if audience == "manager":
+        body = "관리자 권한을 유지하려면 주소창의 전체 링크를 저장해두세요. 기본 링크로 다시 접속하면 새 기기로 인식될 수 있습니다."
+    else:
+        body = "카카오톡에서 다시 접속할 때는 주소창에 보이는 전체 링크를 사용하세요. 특히 ?device_id=... 부분이 빠지면 새 작업자 등록 화면이 나올 수 있습니다."
+    st.info(f"{title}: {body}")
+    st.code(f"?device_id={device_id}", language="text")
+
+
 def worker_label(worker):
     return f"{worker['worker_number']} · {worker['name']}"
 
@@ -1182,6 +1245,7 @@ def render_unregistered_app(device_id):
     )
     worker_tab, manager_tab = st.tabs(["작업자 등록", "관리자 등록"])
     with worker_tab:
+        st.caption("이미 등록했던 작업자라면 같은 작업자 번호와 이름을 입력해 이 기기와 다시 연결할 수 있습니다.")
         render_worker_form(
             form_key="new-worker-form",
             device_id=device_id,
@@ -1213,6 +1277,7 @@ def render_worker_app(device):
         )
         return
 
+    render_device_link_tip(device["device_id"], audience="worker")
     st.markdown(
         f"""
         <header class="page-head">
@@ -1412,6 +1477,7 @@ def render_data_center():
 
 def render_manager_app(device):
     touch_device(device["device_id"])
+    render_device_link_tip(device["device_id"], audience="manager")
     st.markdown(
         f"""
         <section class="role-strip">
