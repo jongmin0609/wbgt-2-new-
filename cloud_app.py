@@ -731,6 +731,75 @@ def apply_styles():
     )
 
 
+def apply_korean_translation_guard():
+    components.html(
+        """
+        <script>
+        (function() {
+            try {
+                const parentDoc = window.parent.document;
+                const root = parentDoc.documentElement;
+                root.setAttribute("lang", "ko");
+                root.setAttribute("translate", "no");
+                root.classList.add("notranslate");
+
+                let googleMeta = parentDoc.querySelector('meta[name="google"]');
+                if (!googleMeta) {
+                    googleMeta = parentDoc.createElement("meta");
+                    googleMeta.setAttribute("name", "google");
+                    parentDoc.head.appendChild(googleMeta);
+                }
+                googleMeta.setAttribute("content", "notranslate");
+
+                let languageMeta = parentDoc.querySelector('meta[http-equiv="Content-Language"]');
+                if (!languageMeta) {
+                    languageMeta = parentDoc.createElement("meta");
+                    languageMeta.setAttribute("http-equiv", "Content-Language");
+                    parentDoc.head.appendChild(languageMeta);
+                }
+                languageMeta.setAttribute("content", "ko");
+
+                const markNoTranslate = () => {
+                    const targets = parentDoc.querySelectorAll([
+                        "body",
+                        ".stApp",
+                        "[data-testid='stAppViewContainer']",
+                        "[data-testid='stMarkdownContainer']",
+                        "[data-testid='stForm']",
+                        "[data-testid='stTextInput']",
+                        "[data-testid='stNumberInput']",
+                        "[data-testid='stSelectbox']",
+                        "[data-testid='stCheckbox']",
+                        "[role='tab']",
+                        "label",
+                        "input",
+                        "textarea",
+                        "button",
+                        "select",
+                        "option"
+                    ].join(","));
+                    targets.forEach((element) => {
+                        element.setAttribute("translate", "no");
+                        element.classList.add("notranslate");
+                    });
+                };
+
+                markNoTranslate();
+                if (parentDoc.body && !parentDoc.body.dataset.wgbtTranslateGuard) {
+                    parentDoc.body.dataset.wgbtTranslateGuard = "true";
+                    new MutationObserver(markNoTranslate).observe(parentDoc.body, {
+                        childList: true,
+                        subtree: true
+                    });
+                }
+            } catch (_) {}
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
+
 def render_device_alert_controls(risk, manager_alert, heart_rate, wbgt, updated_at):
     payload = {
         "risk": risk,
@@ -1504,6 +1573,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 apply_styles()
+apply_korean_translation_guard()
 
 device_id = ensure_device_id()
 device = get_device(device_id)
