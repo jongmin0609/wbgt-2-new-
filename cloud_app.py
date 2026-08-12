@@ -700,6 +700,59 @@ def apply_styles():
                 margin-top: 0.15rem;
                 padding: 0.9rem;
             }
+            .event-table-wrap {
+                background: #ffffff;
+                border: 1px solid var(--line);
+                border-radius: 8px;
+                margin-top: 0.75rem;
+                overflow-x: auto;
+            }
+            .event-table {
+                border-collapse: collapse;
+                min-width: 760px;
+                width: 100%;
+            }
+            .event-table th,
+            .event-table td {
+                border-bottom: 1px solid #eef2f6;
+                color: var(--ink);
+                font-size: 0.88rem;
+                padding: 0.72rem 0.65rem;
+                text-align: left;
+                white-space: nowrap;
+            }
+            .event-table th {
+                background: #f8fafc;
+                color: var(--muted);
+                font-weight: 800;
+            }
+            .event-table tr:last-child td { border-bottom: 0; }
+            .risk-chip {
+                align-items: center;
+                border-radius: 999px;
+                display: inline-flex;
+                font-size: 0.82rem;
+                font-weight: 900;
+                justify-content: center;
+                min-width: 3.1rem;
+                padding: 0.22rem 0.58rem;
+            }
+            .risk-chip-safe {
+                background: #ecfccb;
+                color: var(--safe-text);
+            }
+            .risk-chip-caution {
+                background: #fef9c3;
+                color: var(--caution-text);
+            }
+            .risk-chip-warning {
+                background: #ffedd5;
+                color: var(--warning-text);
+            }
+            .risk-chip-danger {
+                background: #fee2e2;
+                color: var(--danger-text);
+            }
             [data-testid="stForm"] { padding: 1rem; }
             div[data-testid="stFormSubmitButton"] button {
                 min-height: 2.8rem;
@@ -1073,6 +1126,15 @@ def worker_label(worker):
 
 def risk_rank(risk):
     return {"안전": 0, "주의": 1, "경고": 2, "위험": 3}.get(risk, -1)
+
+
+def risk_tone_from_label(risk):
+    return {
+        "안전": "safe",
+        "주의": "caution",
+        "경고": "warning",
+        "위험": "danger",
+    }.get(risk, "caution")
 
 
 def render_worker_detail(worker, values, title="작업자 상세 정보"):
@@ -1516,21 +1578,58 @@ def render_data_center():
         key=lambda event: event.get("event_time", ""),
         reverse=order == "최신순",
     )
-    rows = [
-        {
-            "시간": format_updated_at(event["event_time"]),
-            "작업자": f"{event['worker_number']} · {event['name']}",
-            "위험도": event["risk"],
-            "심박수": f"{event['heart_rate']} bpm",
-            "WBGT": f"{event['wbgt']:.1f}℃",
-            "대사율": f"{event['metabolic_watts']:.0f} W",
-            "작업강도": event["workload"],
-            "기준 여유": f"{event['margin']:+.1f}℃",
-            "적용 기준": event["limit_type"],
-        }
-        for event in filtered
-    ]
-    st.dataframe(rows, use_container_width=True, hide_index=True)
+    if not filtered:
+        st.info("선택한 조건에 해당하는 기록이 없습니다.")
+        return
+
+    table_rows = []
+    for event in filtered:
+        risk = event["risk"]
+        tone = risk_tone_from_label(risk)
+        worker_text = f"{event['worker_number']} · {event['name']}"
+        heart_text = f"{event['heart_rate']} bpm"
+        wbgt_text = f"{event['wbgt']:.1f}℃"
+        metabolic_text = f"{event['metabolic_watts']:.0f} W"
+        margin_text = f"{event['margin']:+.1f}℃"
+        table_rows.append(
+            "<tr>"
+            f"<td>{escape(format_updated_at(event['event_time']))}</td>"
+            f"<td>{escape(worker_text)}</td>"
+            f'<td><span class="risk-chip risk-chip-{escape(tone)}">{escape(risk)}</span></td>'
+            f"<td>{escape(heart_text)}</td>"
+            f"<td>{escape(wbgt_text)}</td>"
+            f"<td>{escape(metabolic_text)}</td>"
+            f"<td>{escape(event['workload'])}</td>"
+            f"<td>{escape(margin_text)}</td>"
+            f"<td>{escape(event['limit_type'])}</td>"
+            "</tr>"
+        )
+
+    st.markdown(
+        """
+        <div class="event-table-wrap">
+            <table class="event-table">
+                <thead>
+                    <tr>
+                        <th>시간</th>
+                        <th>작업자</th>
+                        <th>위험도</th>
+                        <th>심박수</th>
+                        <th>WBGT</th>
+                        <th>대사율</th>
+                        <th>작업강도</th>
+                        <th>기준 여유</th>
+                        <th>적용 기준</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    __ROWS__
+                </tbody>
+            </table>
+        </div>
+        """.replace("__ROWS__", "".join(table_rows)),
+        unsafe_allow_html=True,
+    )
 
 
 def render_manager_app(device):
@@ -1544,13 +1643,9 @@ def render_manager_app(device):
         """,
         unsafe_allow_html=True,
     )
-    dashboard_tab, input_tab, data_tab = st.tabs(
-        ["작업관리자 대시보드", "작업자 등록/측정 입력", "데이터센터"]
-    )
+    dashboard_tab, data_tab = st.tabs(["작업관리자 대시보드", "데이터센터"])
     with dashboard_tab:
         render_manager_dashboard()
-    with input_tab:
-        render_manager_worker_input()
     with data_tab:
         render_data_center()
 
