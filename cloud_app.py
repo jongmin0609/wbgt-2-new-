@@ -905,48 +905,44 @@ def get_query_param(name):
     return value
 
 
-def ensure_device_id():
-    device_id = get_query_param("device_id")
-    if device_id:
-        device_id = normalize_device_id(device_id)
-        components.html(
-            f"""
-            <script>
-            try {{
-                window.localStorage.setItem("wgbt-device-id", {json.dumps(device_id)});
-            }} catch (_) {{}}
-            </script>
-            """,
-            height=0,
-        )
-        return device_id
+def set_query_param(name, value):
+    try:
+        st.query_params[name] = value
+    except Exception:
+        current_params = st.experimental_get_query_params()
+        current_params[name] = value
+        st.experimental_set_query_params(**current_params)
 
+
+def sync_device_id_to_browser(device_id):
     components.html(
-        """
+        f"""
         <script>
-        (function() {
-            const key = "wgbt-device-id";
-            let deviceId = null;
-            try { deviceId = window.localStorage.getItem(key); } catch (_) {}
-            if (!deviceId) {
-                const randomPart = window.crypto && window.crypto.randomUUID
-                    ? window.crypto.randomUUID()
-                    : String(Date.now()) + "-" + Math.random().toString(16).slice(2);
-                deviceId = "dev-" + randomPart;
-                try { window.localStorage.setItem(key, deviceId); } catch (_) {}
-            }
-            const url = new URL(window.parent.location.href);
-            if (url.searchParams.get("device_id") !== deviceId) {
-                url.searchParams.set("device_id", deviceId);
-                window.parent.location.replace(url.toString());
-            }
-        })();
+        try {{
+            window.localStorage.setItem("wgbt-device-id", {json.dumps(device_id)});
+        }} catch (_) {{}}
         </script>
         """,
         height=0,
     )
-    st.info("기기 식별 정보를 준비하고 있습니다. 화면이 자동으로 다시 열립니다.")
-    st.stop()
+
+
+def ensure_device_id():
+    device_id = get_query_param("device_id")
+    if device_id:
+        device_id = normalize_device_id(device_id)
+        st.session_state["device_id"] = device_id
+        sync_device_id_to_browser(device_id)
+        return device_id
+
+    device_id = st.session_state.get("device_id")
+    if not device_id:
+        device_id = normalize_device_id("")
+        st.session_state["device_id"] = device_id
+
+    set_query_param("device_id", device_id)
+    sync_device_id_to_browser(device_id)
+    return device_id
 
 
 def worker_label(worker):
