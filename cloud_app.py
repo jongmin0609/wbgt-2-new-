@@ -1090,11 +1090,13 @@ def set_query_param(name, value):
 
 
 def sync_device_id_to_browser(device_id):
+    browser_value = json.dumps(device_id).replace("<", r"\u003c")
     components.html(
         f"""
         <script>
         try {{
-            window.localStorage.setItem("wgbt-device-id", {json.dumps(device_id)});
+            document.cookie = "wgbt-device-id=" + encodeURIComponent({browser_value})
+                + "; Path=/; Max-Age=31536000; SameSite=Lax";
         }} catch (_) {{}}
         </script>
         """,
@@ -1110,7 +1112,7 @@ def ensure_device_id():
         sync_device_id_to_browser(device_id)
         return device_id
 
-    device_id = st.session_state.get("device_id")
+    device_id = st.session_state.get("device_id") or st.context.cookies.get("wgbt-device-id")
     if not device_id:
         device_id = normalize_device_id("")
         st.session_state["device_id"] = device_id
